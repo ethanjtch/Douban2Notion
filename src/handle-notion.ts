@@ -76,11 +76,22 @@ export default async function handleNotion(feeds: FeedItem[]): Promise<void> {
  * @param {ItemCategory} category - the category of the feed items
  * @return {Promise<FailedItem[] | undefined>} an array of failed items or undefined
  */
-async function syncNotionDB(categorizedFeeds: FeedItem[], category: ItemCategory): Promise<FailedItem[] | undefined> {
-  if (categorizedFeeds.length === 0) {
-    consola.info(`No new ${category} feeds.`);
-    return;
-  }
+const validFeeds = categorizedFeeds.filter((item) => item.id !== undefined);
+
+const queryItems = await notion.databases.query({
+  database_id: dbID,
+  filter: {
+    or: validFeeds.map((item) => ({
+      property: DB_PROPERTIES.ITEM_LINK,
+      url: {
+        contains: item.id,
+      },
+    })),
+  },
+}).catch((error) => {
+  consola.error(`Failed to query ${category} database to check already inserted items. `, error);
+  process.exit(1);
+});
 
   const dbID = getDBID(category);
   if (!dbID) {
